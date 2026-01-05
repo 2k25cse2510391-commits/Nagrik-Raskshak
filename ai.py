@@ -1,13 +1,47 @@
-
 import firebase_admin
 from firebase_admin import credentials, firestore
 from datetime import datetime, timedelta
 import re
 import time
+import json
+import os
+from flask import Flask
 
-# ---------- FIREBASE ----------
-cred = credentials.Certificate("serviceAccountKey.json")
-firebase_admin.initialize_app(cred)
+# ---------- FAKE SERVER SETUP (To keep Render awake) ----------
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "AI Complaint Listener is Running!"
+
+# ---------- AUTHENTICATION SETUP (Environment Variable) ----------
+# This checks if the keys are in the Environment Variable first (for Render)
+env_key = os.environ.get('FIREBASE_SERVICE_ACCOUNT')
+
+if env_key:
+    # If on Render, parse the JSON string from the environment
+    try:
+        cred_dict = json.loads(env_key)
+        cred = credentials.Certificate(cred_dict)
+    except Exception as e:
+        print(f"Error parsing FIREBASE_SERVICE_ACCOUNT: {e}")
+        raise
+else:
+    # If local, look for the file
+    if os.path.exists("serviceAccountKey.json"):
+        cred = credentials.Certificate("serviceAccountKey.json")
+    else:
+        print("Warning: No serviceAccountKey.json found and no Env Var set.")
+        # You might want to handle this error or let it crash if auth is mandatory
+
+# Initialize the app
+if not firebase_admin._apps:
+    try:
+        firebase_admin.initialize_app(cred)
+        print("Python AI Agent Connected to Firebase!")
+    except NameError:
+        print("Failed to initialize Firebase: Credentials not loaded.")
+
 db = firestore.client()
 
 # ---------- CLEAN TEXT ----------
@@ -134,10 +168,10 @@ def on_snapshot(col_snapshot, changes, read_time):
             # Prepare actions array
             current_actions = data.get("actions", [])
             classification_action = {
-    "action": f"AI classified as {priority} priority for {department} department",
-    "timestamp": datetime.now().isoformat(),  # CHANGED from datetime.now()
-    "by": "AI System"
-}
+                "action": f"AI classified as {priority} priority for {department} department",
+                "timestamp": datetime.now().isoformat(),
+                "by": "AI System"
+            }
             current_actions.append(classification_action)
 
             db.collection("complaints").document(doc.id).update({
@@ -170,8 +204,14 @@ def on_snapshot(col_snapshot, changes, read_time):
 
 # ---------- START LISTENING ----------
 print("🔥 AI is listening for new complaints...")
+# This attaches the listener to the database
 db.collection("complaints").on_snapshot(on_snapshot)
 
-# ---------- KEEP SCRIPT ALIVE ----------
-while True:
-    time.sleep(60)
+# ---------- START SERVER (REQUIRED FOR RENDER) ----------
+if __name__ == "__main__":
+    # Get the PORT from Render's environment, default to 5000 if local
+    port = int(os.environ.get("PORT", 5000))
+    
+    # Run the Flask app. This blocks the script from exiting, 
+    # replacing the old 'while True' loop.
+    app.run(host='0.0.0.0', port=port)
