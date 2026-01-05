@@ -1,3 +1,12 @@
+/* ================= CONFIGURATION ================= */
+
+// 👇 PASTE YOUR RENDER URL HERE (No trailing slash)
+const API_BASE_URL = "https://nagrik-raskshak.onrender.com";
+
+// Use this one if you are testing locally on your laptop:
+// const API_BASE_URL = "http://localhost:3000"; 
+
+
 /* ================= PANEL SWITCH ================= */
 
 function switchPanel() {
@@ -60,19 +69,25 @@ async function register() {
     return;
   }
 
-  const res = await fetch("http://localhost:3000/register", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, email, password })
-  });
+  try {
+    // UPDATED: Uses API_BASE_URL instead of localhost
+    const res = await fetch(`${API_BASE_URL}/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email, password })
+    });
 
-  const data = await res.json();
+    const data = await res.json();
 
-  if (data.success) {
-    localStorage.setItem("user", JSON.stringify(data.user));
-    window.location.href = "index.html";
-  } else {
-    alert(data.message || "Signup failed");
+    if (data.success) {
+      localStorage.setItem("user", JSON.stringify(data.user));
+      window.location.href = "index.html";
+    } else {
+      alert(data.message || "Signup failed");
+    }
+  } catch (error) {
+    console.error("Register Error:", error);
+    alert("Failed to connect to server. Please try again.");
   }
 }
 
@@ -87,18 +102,24 @@ async function login() {
     return;
   }
 
-  const res = await fetch("http://localhost:3000/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password })
-  });
+  try {
+    // UPDATED: Uses API_BASE_URL instead of localhost
+    const res = await fetch(`${API_BASE_URL}/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    });
 
-  const data = await res.json();
+    const data = await res.json();
 
-  if (data.success) {
-    localStorage.setItem("user", JSON.stringify(data.user));
-    window.location.href = "index.html";
-  } else {
-    alert("Invalid login");
+    if (data.success) {
+      localStorage.setItem("user", JSON.stringify(data.user));
+      window.location.href = "index.html";
+    } else {
+      alert("Invalid login");
+    }
+  } catch (error) {
+    console.error("Login Error:", error);
+    alert("Failed to connect to server. Please try again.");
   }
 }
